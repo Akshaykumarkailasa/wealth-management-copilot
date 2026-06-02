@@ -1,0 +1,91 @@
+body{
+    background:#f4f6f9;
+}
+
+.navbar-brand{
+    font-weight:bold;
+}
+
+.stat-card{
+    transition:0.3s;
+}
+
+.stat-card:hover{
+    transform:translateY(-4px);
+}
+
+.feature-card{
+    border:none;
+    transition:0.3s;
+    cursor:pointer;
+    border-radius:12px;
+}
+
+.feature-card:hover{
+    transform:translateY(-6px);
+}
+
+.expense-card{
+    background:#0d6efd;
+    color:white;
+}
+
+.risk-card{
+    background:#ffc107;
+    color:black;
+}
+
+.portfolio-card{
+    background:#198754;
+    color:white;
+}
+
+.goal-card{
+    background:#0dcaf0;
+    color:black;
+}
+
+.ai-card{
+    background:#212529;
+    color:white;
+}
+
+.report-card{
+    background:#6f42c1;
+    color:white;
+}
+
+.report-card h5,
+.report-card p{
+    color:white;
+}
+
+.feature-card h1{
+    font-size:48px;
+}
+
+#expenseChart{
+    max-width:350px;
+    max-height:350px;
+}
+
+.health-score{
+    font-size:42px;
+    font-weight:bold;
+}
+
+.ai-insight-card{
+    border-left:6px solid #0d6efd;
+}
+
+.ml-card{
+    border-left:6px solid #198754;
+}
+
+.card{
+    border-radius:12px;
+}
+
+.table-hover tbody tr:hover{
+    background:#f8f9fa;
+}
