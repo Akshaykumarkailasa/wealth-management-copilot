@@ -229,13 +229,6 @@ Risk Profile:
     elements.append(
     Spacer(1,10)
 )
-    elements.append(
-        Paragraph(
-            "Wealth Management Copilot Report",
-            styles["Title"]
-        )
-    )
-
     elements.append(Spacer(1, 12))
 
     elements.append(
