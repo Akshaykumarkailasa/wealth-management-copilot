@@ -2184,8 +2184,7 @@ def portfolio():
     if "user_id" not in session:
         return redirect("/login")
 
-    # If user directly refreshes or visits portfolio,
-    # send them back to risk assessment
+    # If user refreshes page directly
     if "risk_type" not in session:
         return redirect("/risk")
 
@@ -2209,13 +2208,51 @@ def portfolio():
         risk["risk_type"]
     )
 
+    # ---------------------------
+    # Gemini Portfolio Analysis
+    # ---------------------------
+
+    try:
+
+        prompt = f"""
+        User Risk Profile: {risk['risk_type']}
+
+        Portfolio Allocation:
+        {portfolio}
+
+        Explain this portfolio in simple terms.
+
+        Mention:
+        - strengths
+        - diversification
+        - risk level
+        - long term suitability
+        - suggestions
+
+        Keep the response concise.
+        """
+
+        response = model.generate_content(prompt)
+
+        ai_analysis = response.text
+
+    except Exception as e:
+
+        print("Gemini Error:", e)
+
+        ai_analysis = (
+            "AI analysis is temporarily unavailable. "
+            "Please try again later."
+        )
+
     # Remove session key after opening portfolio
     session.pop("risk_type", None)
 
     return render_template(
         "portfolio.html",
         risk=risk["risk_type"],
-        portfolio=portfolio
+        portfolio=portfolio,
+        ai_analysis=ai_analysis
     )
 @app.route(
     "/chatbot",
