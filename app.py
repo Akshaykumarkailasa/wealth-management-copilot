@@ -15,6 +15,17 @@ from reportlab.platypus import (
     Spacer
 )
 from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+    Image,
+    PageBreak
+)
+
+from reportlab.lib import colors
+
+import matplotlib.pyplot as plt
 
 def log_ai_usage(user_id, feature):
 
@@ -173,7 +184,21 @@ def report():
     styles = getSampleStyleSheet()
 
     elements = []
+    elements.append(
+    Paragraph(
+        "WEALTH MANAGEMENT REPORT",
+        styles["Title"]
+    )
+)
 
+    elements.append(
+    Paragraph(
+        "AI Powered Personal Finance Analysis",
+        styles["Heading3"]
+    )
+)
+
+    elements.append(Spacer(1,20))
     elements.append(
         Paragraph(
             "Wealth Management Copilot Report",
@@ -266,15 +291,21 @@ def report():
         )
     )
 
-    for asset, value in portfolio.items():
+    elements.append(
+        Paragraph(
+            "Recommended Allocation",
+            styles["Heading3"]
+        )
+    )
+
+    for asset,value in portfolio.items():
 
         elements.append(
             Paragraph(
-                f"{asset}: {value}%",
+                f"• {asset}: {value}%",
                 styles["Normal"]
             )
         )
-
     elements.append(Spacer(1, 10))
 
     elements.append(
@@ -317,6 +348,67 @@ def report():
             Paragraph(
                 "No goals created yet.",
                 styles["Normal"]
+            )
+        )
+    cursor.execute(
+        """
+        SELECT category,
+            SUM(amount) total
+        FROM expenses
+        WHERE user_id=%s
+        GROUP BY category
+        """,
+        (user_id,)
+    )
+
+    expense_data = cursor.fetchall()
+
+    if expense_data:
+
+        labels = [
+            row["category"]
+            for row in expense_data
+        ]
+
+        values = [
+            float(row["total"])
+            for row in expense_data
+        ]
+
+        plt.figure(figsize=(5,5))
+
+        plt.pie(
+            values,
+            labels=labels,
+            autopct="%1.1f%%"
+        )
+
+        plt.title(
+            "Expense Distribution"
+        )
+
+        chart_file = "expense_chart.png"
+
+        plt.savefig(chart_file)
+
+        plt.close()
+
+        elements.append(
+            PageBreak()
+        )
+
+        elements.append(
+            Paragraph(
+                "Expense Distribution",
+                styles["Heading2"]
+            )
+        )
+
+        elements.append(
+            Image(
+                chart_file,
+                width=300,
+                height=300
             )
         )
 
@@ -474,52 +566,118 @@ def dashboard():
     else:
 
         health_score = 0
+    
 
-    # ---------------- GEMINI AI INSIGHT ----------------
+    if health_score < 40:
 
-    try:
+        recommendation = """
+        Expenses are consuming a large
+        percentage of income.
 
-        risk_type = session.get(
-            "risk_type",
-            "Not Assessed"
+        Reduce discretionary spending
+        and increase savings.
+        """
+
+    elif health_score < 70:
+
+        recommendation = """
+        Financial position is stable.
+
+        Consider increasing investment
+        contributions.
+        """
+
+    else:
+
+        recommendation = """
+        Strong financial health.
+
+        Focus on wealth growth and
+        portfolio diversification.
+        """
+    elements.append(
+        Paragraph(
+            "AI Recommendations",
+            styles["Heading2"]
         )
+    )
 
-        prompt = f"""
-You are an AI Financial Advisor.
-
-User Profile:
-
-Name: {user['name']}
-Age: {user['age']}
-Income: ₹{income}
-Total Expenses: ₹{total_expense}
-Savings: ₹{savings}
-Financial Health Score: {health_score}/100
-Risk Profile: {risk_type}
-
-Provide:
-
-1. One financial insight
-2. One recommendation
-3. One next action
-
-Keep the response under 100 words.
-"""
-
-        ai_insight = ask_gemini(prompt)
-
-        log_ai_usage(
-            user_id,
-            "Dashboard Insight"
+    elements.append(
+        Paragraph(
+            recommendation,
+            styles["Normal"]
         )
+    )
 
-    except Exception as e:
+    # ---------------- AI FINANCIAL INSIGHT ----------------
+
+    risk_type = session.get(
+    "risk_type",
+    "Not Assessed"
+    )
+
+    expense_ratio = (
+    total_expense / income
+    ) if income > 0 else 0
+
+    if health_score < 40:
 
         ai_insight = f"""
-AI Insight unavailable.
+📉 Financial Health: Needs Improvement
 
-Error:
-{str(e)}
+• Expenses consume {round(expense_ratio*100)}% of your income.
+
+• Current savings are ₹{savings:,.0f}.
+
+• Your spending pattern may affect long-term wealth creation.
+
+Recommendation:
+Reduce discretionary expenses and
+increase monthly savings.
+
+Next Action:
+Create a monthly budget and aim
+to save at least 20% of income.
+"""
+
+    elif health_score < 70:
+
+        ai_insight = f"""
+📊 Financial Health: Moderate
+
+• Savings currently stand at ₹{savings:,.0f}.
+
+• Financial position is stable but has room for improvement.
+
+• Your risk profile is {risk_type}.
+
+Recommendation:
+Increase investments gradually and
+maintain spending discipline.
+
+Next Action:
+Allocate an additional 10% of income
+towards long-term investments.
+"""
+
+    else:
+
+        ai_insight = f"""
+🚀 Financial Health: Strong
+
+• Savings of ₹{savings:,.0f} indicate strong financial discipline.
+
+• Spending is well controlled relative to income.
+
+• Your risk profile is {risk_type}.
+
+Recommendation:
+Focus on portfolio diversification
+and long-term wealth accumulation.
+
+Next Action:
+Review investment allocation and
+increase exposure to growth assets.
 """
 
     # ---------------- EXPENSE HISTORY ----------------
