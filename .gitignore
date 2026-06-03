@@ -3,3 +3,6 @@ venv/
 __pycache__/
 *.pyc
 financial_report.pdf
+expense_chart.png
+portfolio_chart.png
+financial_report.pdf
