@@ -1270,6 +1270,92 @@ def log_ai_usage(user_id, feature):
 
 app = Flask(__name__)
 app.secret_key = "wealth_secret"
+def generate_financial_insight(
+    user,
+    income,
+    expense,
+    savings,
+    health_score,
+    risk_type,
+    forecast
+):
+
+    savings_rate = round(
+        (savings / income) * 100
+    ) if income > 0 else 0
+
+    expense_rate = round(
+        (expense / income) * 100
+    ) if income > 0 else 0
+
+    insight = f"""
+Financial Overview
+
+Your monthly income is Rs. {income:,.0f}
+with total recorded expenses of
+Rs. {expense:,.0f}.
+
+Current savings amount to
+Rs. {savings:,.0f},
+representing approximately
+{savings_rate}% of income.
+
+Financial Health Analysis
+
+Your financial health score is
+{health_score}/100.
+
+Expenses currently consume
+{expense_rate}% of your income.
+
+Risk Profile
+
+Your investment profile is
+classified as {risk_type}.
+
+Future Outlook
+
+Based on historical spending data,
+the estimated next expense is
+approximately Rs. {forecast if forecast else 'Not Available'}.
+
+Recommendation
+
+"""
+
+    if health_score >= 70:
+
+        insight += """
+You are maintaining strong financial
+discipline. Consider increasing
+long-term investments and portfolio
+diversification to maximize wealth
+creation opportunities.
+"""
+
+    elif health_score >= 40:
+
+        insight += """
+Your finances remain stable but
+there is room for improvement.
+
+Reducing discretionary expenses
+and increasing monthly investments
+could significantly improve your
+long-term financial position.
+"""
+
+    else:
+
+        insight += """
+Current spending patterns may
+impact long-term financial goals.
+
+Focus on improving savings habits,
+budget planning and expense control.
+"""
+
+    return insight
 def forecast_expense(user_id):
 
     cursor.execute(
@@ -1926,76 +2012,36 @@ def dashboard():
         portfolio diversification.
         """
     
-    # ---------------- AI FINANCIAL INSIGHT ----------------
-
     risk_type = session.get(
     "risk_type",
     "Not Assessed"
-    )
+)
 
-    expense_ratio = (
-    total_expense / income
-    ) if income > 0 else 0
+    forecast = forecast_expense(
+    user_id
+)
 
-    if health_score < 40:
+    if "dashboard_insight" in session:
 
-        ai_insight = f"""
-📉 Financial Health: Needs Improvement
-
-• Expenses consume {round(expense_ratio*100)}% of your income.
-
-• Current savings are ₹{savings:,.0f}.
-
-• Your spending pattern may affect long-term wealth creation.
-
-Recommendation:
-Reduce discretionary expenses and
-increase monthly savings.
-
-Next Action:
-Create a monthly budget and aim
-to save at least 20% of income.
-"""
-
-    elif health_score < 70:
-
-        ai_insight = f"""
-📊 Financial Health: Moderate
-
-• Savings currently stand at ₹{savings:,.0f}.
-
-• Financial position is stable but has room for improvement.
-
-• Your risk profile is {risk_type}.
-
-Recommendation:
-Increase investments gradually and
-maintain spending discipline.
-
-Next Action:
-Allocate an additional 10% of income
-towards long-term investments.
-"""
+        ai_insight = session[
+        "dashboard_insight"
+    ]
 
     else:
 
-        ai_insight = f"""
-🚀 Financial Health: Strong
+        ai_insight = generate_financial_insight(
+        user,
+        income,
+        total_expense,
+        savings,
+        health_score,
+        risk_type,
+        forecast
+    )
 
-• Savings of ₹{savings:,.0f} indicate strong financial discipline.
-
-• Spending is well controlled relative to income.
-
-• Your risk profile is {risk_type}.
-
-Recommendation:
-Focus on portfolio diversification
-and long-term wealth accumulation.
-
-Next Action:
-Review investment allocation and
-increase exposure to growth assets.
-"""
+    session[
+        "dashboard_insight"
+    ] = ai_insight
 
     # ---------------- EXPENSE HISTORY ----------------
 
@@ -2080,6 +2126,10 @@ def expense():
         )
 
         conn.commit()
+        session.pop(
+    "dashboard_insight",
+    None
+)
 
         return redirect("/dashboard")
 
@@ -2095,23 +2145,34 @@ def risk():
         score = (
             int(request.form["q1"]) +
             int(request.form["q2"]) +
-            int(request.form["q3"]) +
-            int(request.form["q4"]) +
-            int(request.form["q5"]) +
-            int(request.form["q6"]) +
-            int(request.form["q7"]) +
-            int(request.form["q8"])
+            int(request.form["q3"])
         )
 
-        if score <= 12:
+        if score <= 4:
             risk_type = "Conservative"
 
-        elif score <= 18:
+        elif score <= 7:
             risk_type = "Moderate"
 
         else:
             risk_type = "Aggressive"
 
+        cursor.execute(
+            """
+            INSERT INTO risk_profile
+            (user_id, score, risk_type)
+            VALUES (%s, %s, %s)
+            """,
+            (
+                session["user_id"],
+                score,
+                risk_type
+            )
+        )
+
+        conn.commit()
+
+        # Allow access to portfolio only once
         session["risk_type"] = risk_type
 
         return redirect("/portfolio")
@@ -2123,96 +2184,38 @@ def portfolio():
     if "user_id" not in session:
         return redirect("/login")
 
-    risk = session.get("risk_type")
-
-    if not risk:
+    # If user directly refreshes or visits portfolio,
+    # send them back to risk assessment
+    if "risk_type" not in session:
         return redirect("/risk")
-
-    if risk == "Conservative":
-
-        portfolio = {
-            "Bonds": 50,
-            "Mutual Funds": 25,
-            "Stocks": 15,
-            "Gold": 10
-        }
-
-    elif risk == "Moderate":
-
-        portfolio = {
-            "Stocks": 50,
-            "Mutual Funds": 25,
-            "Bonds": 15,
-            "Gold": 10
-        }
-
-    else:
-
-        portfolio = {
-            "Stocks": 70,
-            "Mutual Funds": 15,
-            "Gold": 10,
-            "Bonds": 5
-        }
 
     cursor.execute(
         """
         SELECT *
-        FROM users
-        WHERE id=%s
+        FROM risk_profile
+        WHERE user_id=%s
+        ORDER BY id DESC
+        LIMIT 1
         """,
         (session["user_id"],)
     )
 
-    user = cursor.fetchone()
+    risk = cursor.fetchone()
 
-    try:
+    if not risk:
+        return redirect("/risk")
 
-        prompt = f"""
-You are an Investment Portfolio Analyst.
+    portfolio = get_portfolio(
+        risk["risk_type"]
+    )
 
-User Profile:
-
-Name: {user['name']}
-Age: {user['age']}
-Income: ₹{user['income']}
-Risk Profile: {risk}
-
-Recommended Portfolio:
-
-{portfolio}
-
-Explain:
-
-1. Why this portfolio suits the user
-2. Benefits of the allocation
-3. Risk vs Return tradeoff
-4. One investment tip
-
-Keep response under 120 words.
-"""
-
-        portfolio_explanation = ask_gemini(prompt)
-
-        log_ai_usage(
-            session["user_id"],
-            "Portfolio Analyst"
-        )
-
-    except Exception as e:
-
-        portfolio_explanation = f"""
-AI Portfolio Analysis unavailable.
-
-Error:
-{str(e)}
-"""
+    # Remove session key after opening portfolio
+    session.pop("risk_type", None)
 
     return render_template(
         "portfolio.html",
-        risk=risk,
-        portfolio=portfolio,
-        portfolio_explanation=portfolio_explanation
+        risk=risk["risk_type"],
+        portfolio=portfolio
     )
 @app.route(
     "/chatbot",
