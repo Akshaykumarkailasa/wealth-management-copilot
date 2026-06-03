@@ -202,6 +202,34 @@ def report():
 
     elements.append(Spacer(1,20))
     elements.append(
+    Paragraph(
+        "Executive Summary",
+        styles["Heading2"]
+    )
+)
+
+    elements.append(
+    Paragraph(
+        f"""
+This report analyzes the financial
+position of {user['name']}.
+
+Current savings amount to
+Rs. {savings:,.0f} with a
+Financial Health Score of
+{health_score}/100.
+
+Risk Profile:
+{risk}
+        """,
+        styles["Normal"]
+    )
+)
+
+    elements.append(
+    Spacer(1,10)
+)
+    elements.append(
         Paragraph(
             "Wealth Management Copilot Report",
             styles["Title"]
@@ -246,7 +274,45 @@ def report():
             styles["Heading2"]
         )
     )
+    if health_score >= 70:
 
+        recommendation = """
+Excellent financial discipline.
+
+Continue investing regularly and
+focus on portfolio diversification.
+"""
+
+    elif health_score >= 40:
+
+        recommendation = """
+    Moderate financial health.
+
+    Increase monthly savings and
+    review discretionary spending.
+    """
+
+    else:
+
+        recommendation = """
+    Financial health requires attention.
+
+    Reduce expenses and establish
+    a stronger savings habit.
+    """
+    elements.append(
+        Paragraph(
+            "Recommendations",
+            styles["Heading2"]
+        )
+    )
+
+    elements.append(
+        Paragraph(
+            recommendation,
+            styles["Normal"]
+        )
+    )
     elements.append(
         Paragraph(
             f"Total Expenses: ₹{expense}",
@@ -413,7 +479,54 @@ def report():
                 height=300
             )
         )
+# ---------------- PORTFOLIO CHART ----------------
 
+    portfolio_labels = list(
+        portfolio.keys()
+    )
+
+    portfolio_values = list(
+        portfolio.values()
+    )
+
+    plt.figure(figsize=(5,5))
+
+    plt.pie(
+        portfolio_values,
+        labels=portfolio_labels,
+        autopct="%1.1f%%"
+    )
+
+    plt.title(
+        "Portfolio Allocation"
+    )
+
+    portfolio_chart = "portfolio_chart.png"
+
+    plt.savefig(
+        portfolio_chart
+    )
+
+    plt.close()
+
+    elements.append(
+        PageBreak()
+    )
+
+    elements.append(
+        Paragraph(
+            "Portfolio Allocation Analysis",
+            styles["Heading2"]
+        )
+    )
+
+    elements.append(
+        Image(
+            portfolio_chart,
+            width=300,
+            height=300
+        )
+    )
     doc.build(elements)
 
     return send_file(
@@ -597,20 +710,7 @@ def dashboard():
         Focus on wealth growth and
         portfolio diversification.
         """
-    elements.append(
-        Paragraph(
-            "AI Recommendations",
-            styles["Heading2"]
-        )
-    )
-
-    elements.append(
-        Paragraph(
-            recommendation,
-            styles["Normal"]
-        )
-    )
-
+    
     # ---------------- AI FINANCIAL INSIGHT ----------------
 
     risk_type = session.get(
