@@ -136,7 +136,9 @@ def report():
         "Not Assessed"
     )
 
-    forecast = forecast_expense(user_id)
+    forecast = abs(
+    forecast_expense(user_id)
+) if forecast_expense(user_id) is not None else None
 
     cursor.execute(
         """
@@ -231,7 +233,7 @@ def report():
 
     elements.append(
         Paragraph(
-            f"Income: ₹{user['income']}",
+            f"Income: Rs. {user['income']:,.0f}",
             styles["Normal"]
         )
     )
